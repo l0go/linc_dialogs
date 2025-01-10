@@ -3,6 +3,7 @@ package linc;
 import haxe.io.Path;
 import haxe.macro.Expr;
 import haxe.macro.Context;
+import sys.io.Process;
 
 using haxe.macro.PositionTools;
 
@@ -49,13 +50,21 @@ class Linc {
         var _linc_lib_path = Path.normalize(Path.join([_source_path, _relative_root]));
         var _linc_include_path = Path.normalize(Path.join([ _linc_lib_path, './linc/linc_${_lib}.xml' ]));
         var _linc_lib_var = 'LINC_${_lib.toUpperCase()}_PATH';
+		var _compiler_flags = [];
+		#if linux
+		var _glib_config = new Process("pkg-config", ["--cflags", "glib-2.0", "gtk+-3.0"]);
+		var _glib_flags = _glib_config.stdout.readAll().toString().split("\n").join(" ").split(" ");
+		for (flag in _glib_flags) {
+			_compiler_flags.push('<compilerflag value="${flag}"/>');
+		}
+		#end
 
         var _define = '<set name="$_linc_lib_var" value="$_linc_lib_path/"/>';
         var _import_path = '$${$_linc_lib_var}linc/linc_${_lib}.xml';
         var _import = '<include name="$_import_path" />';
 
-        _class.get().meta.add(":buildXml", [{ expr:EConst( CString( '$_define\n$_import' ) ), pos:_pos }], _pos );
-        
+		trace('$_define\n${_compiler_flags.join("\n")}\n$_import');
+        _class.get().meta.add(":buildXml", [{ expr:EConst( CString( '$_define\n$_import\n<files id="linc_dialogs">\n${_compiler_flags.join("\n")}\n</files>' ) ), pos:_pos }], _pos );
         return Context.getBuildFields();
 
     } //xml
